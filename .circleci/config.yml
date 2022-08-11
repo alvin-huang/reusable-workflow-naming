@@ -1,0 +1,36 @@
+version: 2.1
+
+# this allows you to use CircleCI's dynamic configuration feature
+setup: true
+
+# the continuation orb is required in order to use dynamic configuration
+orbs:
+  continuation: circleci/continuation@0.1.2
+
+parameters:
+  PRODUCT:
+    type: string
+    default: ""
+  PKG_NAME:
+    type: string
+    default: ""
+
+# our defined job, and its steps
+jobs:
+  setup:
+    executor: continuation/default
+    steps:
+      - checkout # checkout code
+      - run: # run a command
+          name: Generate config
+          command: |
+            sed -i 's/code-signing-<PRODUCT><SHA>/code-signing-<< pipeline.parameters.PRODUCT >>/g' .circleci/codesign.yml
+            cat .circleci/codesign.yml
+      - continuation/continue:
+          configuration_path: .circleci/codesign.yml # use newly generated config to continue
+
+# our single workflow, that triggers the setup job defined above
+workflows:
+  setup:
+    jobs:
+      - setup

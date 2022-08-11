@@ -1,0 +1,79 @@
+version: 2.1
+
+parameters:
+  PRODUCT:
+    type: string
+    default: ""
+  PKG_NAME:
+    type: string
+    default: ""
+
+environment: &ENVIRONMENT
+  PRODUCT: << pipeline.parameters.PRODUCT >>
+  PKG_NAME: << pipeline.parameters.PKG_NAME >>
+
+jobs:
+  setup:
+    docker:
+      - image: alpine:latest
+    environment:
+      <<: *ENVIRONMENT
+    steps:
+      - run: echo "setup"
+      - run: "echo PRODUCT is: $PRODUCT, PKG_NAME is $PKG_NAME"
+  mac-dmg-signing:
+    docker:
+      - image: alpine:latest
+    steps:
+      - run: echo "mac-dmg-signing"
+  mac-binary-signing:
+    docker:
+      - image: alpine:latest
+    steps:
+      - run: echo "mac-binary-signing"
+  windows-signing:
+    docker:
+      - image: alpine:latest
+    steps:
+      - run: echo "windows-verification:"
+  windows-verification:
+    docker:
+      - image: alpine:latest
+    steps:
+      - run: echo "windows-verification"
+
+  # check for workflows using the obsolete `master` branch
+  check-branch-use:
+    docker:
+      - image: cimg/go:1.15.6
+    steps:
+      - run: echo "check-branch-use"
+
+workflows:
+  code-signing-<PRODUCT><SHA>:
+    when: << pipeline.parameters.PRODUCT >>
+    jobs:
+      - setup
+      - mac-binary-signing:
+          requires:
+            - setup
+      - mac-dmg-signing:
+          requires:
+            - setup
+      - windows-signing:
+          requires:
+            - setup
+      - windows-verification:
+          requires:
+            - windows-signing
+
+  check-old-branch-use:
+    triggers:
+      - schedule:
+          cron: 0 0 * * 1
+          filters:
+            branches:
+              only:
+                - main
+    jobs:
+      - check-branch-use
